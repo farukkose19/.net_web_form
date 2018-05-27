@@ -1,0 +1,84 @@
+---------
+create table ##t(KitapPuanID int,KullaniciID int,KitapID int, Puan int)
+create table ##t2 (KullaniciID int)
+create table ##t3 (KullaniciID int)
+create table ##t4(KitapID int)
+create table ##t5(KitapID int)
+-----------
+
+
+
+sorgu 1:
+select k.KullaniciAdi, k.Resim, k.KullaniciID, k.Ad, k.Soyad , COUNT(*) as ortakkitap from KitapOkunma o inner Join Kullanici k on o.KullaniciID=k.KullaniciID where o.KullaniciID!=1 and o.KitapID in 
+(select h.KitapID From KitapOkunma h where h.KullaniciID=1) group by k.KullaniciID, k.Ad, k.Soyad, k.Resim, k.KullaniciAdi
+
+
+
+
+sorgu2:
+
+----
+create table ##t(KitapPuanID int,KullaniciID int,KitapID int, Puan int)
+----
+
+truncate table ##t;
+
+insert into ##t(KitapPuanID,KullaniciID,KitapID, Puan)
+	(select k.KitapPuanID,t.KullaniciID,k.KitapID,k.Puan from KitapPuan k
+	left join
+		(select * from KitapPuan where KullaniciID!=1) t
+		on
+		t.KitapID =k.KitapID and t.Puan=k.Puan where k.KullaniciID=1 and t.Puan is not null);
+	 
+select d.KitapPuanID,d.KitapID,t.Resim,t.KitapAdi,d.Puan,k.KullaniciID,k.KullaniciAdi,k.Resim from ##t d
+	inner join
+		Kullanici k 
+		on
+		k.KullaniciID=d.KullaniciID 
+	inner join
+		Kitap t 
+		on
+		d.KitapID=t.KitapID;
+
+
+
+sorgu 3:
+
+create PROCEDURE oneri3
+	@id int
+AS
+BEGIN
+	
+truncate table ##t2;
+truncate table ##t3;
+truncate table ##t4;
+truncate table ##t5;
+
+insert into ##t2(KullaniciID) (select t.KullaniciID from KitapPuan k
+	left join
+		(select * from KitapPuan where KullaniciID!=@id) t
+		on
+		t.KitapID =k.KitapID and t.Puan=k.Puan where k.KullaniciID=@id and t.Puan is not null);
+
+		insert into ##t3(KullaniciID) 
+		(select  k.KullaniciID 
+from KitapOkunma o inner Join Kullanici k on o.KullaniciID=k.KullaniciID 
+where o.KullaniciID!=@id and o.KitapID in 
+	(select h.KitapID From KitapOkunma h where h.KullaniciID=@id) 
+	group by k.KullaniciID);
+
+	insert into ##t4 (KitapID) (Select KitapID from KitapOkunma where KullaniciID in (select * from ##t3)) ;
+
+	insert into ##t5 (kitapID) (select * from ##t4 where KitapID not in (Select KitapID from KitapOkunma where KullaniciID=@id) group by KitapID );
+
+	select k.KitapID,k.KitapAdi,k.Resim from ##t5 t
+	inner Join Kitap k
+	on
+	t.KitapID=k.KitapID
+END
+GO
+
+
+
+
+exec oneri3 1
